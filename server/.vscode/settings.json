@@ -1,0 +1,11 @@
+{
+	"breadcrumbs.icons": true,
+	"breadcrumbs.showArrays": true,
+	"breadcrumbs.showBooleans": true,
+	"breadcrumbs.showClasses": true,
+	"breadcrumbs.showConstants": true,
+	"breadcrumbs.showInterfaces": true,
+	"breadcrumbs.showFunctions": true,
+	"breadcrumbs.enabled": false,
+	"breadcrumbs.filePath": "on"
+}
