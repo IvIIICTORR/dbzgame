@@ -21,7 +21,7 @@
         class="mb-4 flex flex-col-reverse items-center justify-center gap-6 text-neutral-400 md:flex-row md:justify-start md:gap-3"
       >
         <nav class="flex flex-wrap justify-center gap-x-4 gap-y-2 md:justify-start">
-          <RouterLink :to="{ name: '' }" class="hover:text-white">Suporte</RouterLink>
+          <RouterLink :to="{ name: 'suporte' }" class="hover:text-white">Suporte</RouterLink>
           <RouterLink :to="{ name: 'privacy-policy' }" class="hover:text-white"
             >Aviso de Privacidade</RouterLink
           >
