@@ -58,6 +58,7 @@ declare module 'vue' {
     'ISolar:arrowLeftOutline': typeof import('~icons/solar/arrow-left-outline')['default']
     'ISolar:checkCircleBold': typeof import('~icons/solar/check-circle-bold')['default']
     'ISolar:dangerTriangleBold': typeof import('~icons/solar/danger-triangle-bold')['default']
+    'ISolar:giftBold': typeof import('~icons/solar/gift-bold')['default']
     'ISolar:hamburgerMenuLinear': typeof import('~icons/solar/hamburger-menu-linear')['default']
     'ISolar:heartBold': typeof import('~icons/solar/heart-bold')['default']
     'ISolar:heartOutline': typeof import('~icons/solar/heart-outline')['default']
