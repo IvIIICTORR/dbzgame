@@ -3,19 +3,19 @@ import { SagaController } from './saga.controller.js'
 
 export default async function sagaRoutes(fastify: FastifyInstance) {
 	fastify.get(
-		'/sagas',
+		'/',
 		{ onRequest: [fastify.authenticate] },
 		SagaController.getAll,
 	)
 
 	fastify.get(
-		'/sagas/:id',
+		'/:id',
 		{ onRequest: [fastify.authenticate] },
 		SagaController.getDetail as any,
 	)
 
 	fastify.post(
-		'/sagas/:id/result',
+		'/:id/result',
 		{ onRequest: [fastify.authenticate] },
 		SagaController.submitResult as any,
 	)

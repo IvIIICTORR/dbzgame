@@ -28,7 +28,7 @@ const sagas = ref<SagaItem[]>([])
 const isLoading = ref(true)
 
 const syncPercentage = computed(() => {
-  if (sagas.value.length === 0) return 0
+  if (!sagas.value || sagas.value.length === 0) return 0
   const completed = sagas.value.filter(s => s.status === 'CONCLUÍDO').length
   return Math.round((completed / sagas.value.length) * 100)
 })
@@ -37,7 +37,9 @@ const fetchSagas = async () => {
   try {
     isLoading.value = true
     const response = await client.get({ url: '/sagas' })
-    sagas.value = response.data as SagaItem[]
+    if (Array.isArray(response.data)) {
+      sagas.value = response.data as SagaItem[]
+    }
   } catch (err) {
     console.error('Erro ao carregar sagas:', err)
   } finally {
