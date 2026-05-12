@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useHead } from '@unhead/vue'
 import { useAuthStore } from '@/stores/auth'
 import { RouterLink } from 'vue-router'
+import { client } from '@/api/client.gen'
 
 useHead({ title: 'Base de Comando - Dragon Ball Z RPG' })
 const auth = useAuthStore()
@@ -21,31 +22,49 @@ const playerStatus = {
 
 // --- MISSÕES DIÁRIAS ---
 interface DailyMission {
-  id: number
+  id: string
   title: string
   desc: string
   progress: number
   total: number
-  image: string
+  image: string | null
   reward: { zeni: number; exp: number }
   claimed: boolean
 }
 
-const dailyMissions = ref<DailyMission[]>([
-  { id: 1, title: 'Aquecimento', desc: 'Derrota 5 Saibamens.', progress: 5, total: 5, image: '/templates/capsula.png', reward: { zeni: 200, exp: 100 }, claimed: false },
-  { id: 2, title: 'Controle de Ki', desc: 'Treina Atributos 3 vezes.', progress: 1, total: 3, image: '/templates/cell.png', reward: { zeni: 150, exp: 80 }, claimed: false },
-  { id: 3, title: 'Desafiante', desc: 'Vence 1 duelo na Arena.', progress: 0, total: 1, image: '/templates/freeza.png', reward: { zeni: 500, exp: 250 }, claimed: false },
-  { id: 4, title: 'Explorador', desc: 'Encontra 1 Esfera do Dragão.', progress: 0, total: 1, image: '/templates/esferas.png', reward: { zeni: 1000, exp: 500 }, claimed: false },
-  { id: 5, title: 'Treino Pesado', desc: 'Gravidade 100x.', progress: 2, total: 10, image: '/templates/treinopesado.png', reward: { zeni: 300, exp: 200 }, claimed: false },
-  { id: 6, title: 'Patrulha Galáctica', desc: 'Ajude o Jaco.', progress: 0, total: 1, image: '/templates/patrulha.png', reward: { zeni: 400, exp: 150 }, claimed: false },
-  { id: 7, title: 'Mestre Kame', desc: 'Entrega de leite.', progress: 1, total: 1, image: '/templates/mestrekame.png', reward: { zeni: 250, exp: 120 }, claimed: false }
-])
+const dailyMissions = ref<DailyMission[]>([])
+const isLoadingMissions = ref(true)
+const isClaiming = ref<string | null>(null)
 
-const claimReward = (mission: DailyMission) => {
-  if (mission.progress < mission.total || mission.claimed) return
-  mission.claimed = true
-  // TODO: Chamar API para registrar coleta e adicionar recompensas ao jogador
+const fetchDailyMissions = async () => {
+  try {
+    isLoadingMissions.value = true
+    const response = await client.get({ url: '/missions/daily' })
+    const data = response.data as DailyMission[]
+    dailyMissions.value = data
+  } catch (err) {
+    console.error('Erro ao carregar missões diárias:', err)
+  } finally {
+    isLoadingMissions.value = false
+  }
 }
+
+const claimReward = async (mission: DailyMission) => {
+  if (mission.progress < mission.total || mission.claimed || isClaiming.value) return
+  try {
+    isClaiming.value = mission.id
+    await client.post({ url: `/missions/daily/${mission.id}/claim` })
+    mission.claimed = true
+  } catch (err) {
+    console.error('Erro ao coletar recompensa:', err)
+  } finally {
+    isClaiming.value = null
+  }
+}
+
+onMounted(() => {
+  fetchDailyMissions()
+})
 
 // --- NOVIDADES ---
 const featuredNews = {
@@ -155,7 +174,13 @@ const stopDrag = () => { isDown = false; runMomentum() }
              @mousedown="startDrag" @mousemove="handleDrag" @mouseup="stopDrag" @mouseleave="stopDrag"
              @touchstart="startDrag" @touchmove="handleDrag" @touchend="stopDrag">
           
-          <div v-for="(mission, index) in dailyMissions" :key="mission.id"
+          <div v-if="isLoadingMissions" v-for="n in 5" :key="n"
+               class="relative w-[300px] h-[440px] shrink-0 bg-neutral-800 overflow-hidden shadow-xl animate-pulse"
+               :class="n !== 1 ? '-ml-10' : ''"
+               style="clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);">
+          </div>
+
+          <div v-else v-for="(mission, index) in dailyMissions" :key="mission.id"
                class="relative w-[300px] h-[440px] shrink-0 transition-all duration-500 hover:scale-[1.03] bg-neutral-900 overflow-hidden shadow-xl group"
                :class="[
                  index !== 0 ? '-ml-10' : '',
@@ -196,8 +221,9 @@ const stopDrag = () => { isDown = false; runMomentum() }
               
               <button v-if="mission.progress === mission.total && !mission.claimed"
                       @click.stop="claimReward(mission)"
-                      class="mt-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-widest px-6 py-2.5 rounded-full shadow-[0_0_20px_rgba(234,179,8,0.4)] hover:shadow-[0_0_30px_rgba(234,179,8,0.6)] transition-all hover:scale-105 active:scale-95 cursor-pointer">
-                Coletar Recompensa
+                      :disabled="isClaiming === mission.id"
+                      class="mt-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-widest px-6 py-2.5 rounded-full shadow-[0_0_20px_rgba(234,179,8,0.4)] hover:shadow-[0_0_30px_rgba(234,179,8,0.6)] transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-wait disabled:scale-100">
+                {{ isClaiming === mission.id ? 'Coletando...' : 'Coletar Recompensa' }}
               </button>
               <span v-else class="text-[11px] font-black uppercase italic tracking-widest tabular-nums"
                     :class="mission.claimed ? 'text-neutral-500' : 'text-white/80'">

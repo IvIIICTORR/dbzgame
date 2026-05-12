@@ -7,6 +7,7 @@ import {
 import {
 	boolean,
 	index,
+	int,
 	mysqlEnum,
 	mysqlTable,
 	text,
@@ -206,6 +207,51 @@ export const news = mysqlTable('news', {
 })
 
 // ======================================================
+// 8. DAILY MISSIONS (Definição das missões)
+// ======================================================
+export const dailyMissions = mysqlTable('daily_missions', {
+	id: varchar('id', { length: 36 })
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	title: varchar('title', { length: 100 }).notNull(),
+	description: varchar('description', { length: 255 }).notNull(),
+	total: int('total').notNull(),
+	rewardZeni: int('reward_zeni').notNull().default(0),
+	rewardExp: int('reward_exp').notNull().default(0),
+	imageUrl: varchar('image_url', { length: 512 }),
+	isActive: boolean('is_active').default(true).notNull(),
+	createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// ======================================================
+// 9. DAILY MISSION PROGRESS (Progresso por jogador por dia)
+// ======================================================
+export const dailyMissionProgress = mysqlTable(
+	'daily_mission_progress',
+	{
+		id: varchar('id', { length: 36 })
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		userId: varchar('user_id', { length: 36 })
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		missionId: varchar('mission_id', { length: 36 })
+			.notNull()
+			.references(() => dailyMissions.id, { onDelete: 'cascade' }),
+		progress: int('progress').notNull().default(0),
+		claimed: boolean('claimed').default(false).notNull(),
+		date: varchar('date', { length: 10 }).notNull(), // 'YYYY-MM-DD'
+		claimedAt: timestamp('claimed_at'),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+	},
+	(table) => [
+		index('user_date_idx').on(table.userId, table.date),
+		unique('user_mission_date_unique').on(table.userId, table.missionId, table.date),
+	],
+)
+
+// ======================================================
 // RELATIONSHIPS
 // ======================================================
 
@@ -215,6 +261,22 @@ export const usersRelations = relations(users, ({ many }) => ({
 	referralsMade: many(referrals, { relationName: 'referrer' }),
 	referredBy: many(referrals, { relationName: 'referred' }),
 	messages: many(messages),
+	dailyMissionProgress: many(dailyMissionProgress),
+}))
+
+export const dailyMissionsRelations = relations(dailyMissions, ({ many }) => ({
+	progress: many(dailyMissionProgress),
+}))
+
+export const dailyMissionProgressRelations = relations(dailyMissionProgress, ({ one }) => ({
+	user: one(users, {
+		fields: [dailyMissionProgress.userId],
+		references: [users.id],
+	}),
+	mission: one(dailyMissions, {
+		fields: [dailyMissionProgress.missionId],
+		references: [dailyMissions.id],
+	}),
 }))
 
 export const providersRelations = relations(providers, ({ one }) => ({
@@ -290,3 +352,11 @@ export type NewMessage = InferInsertModel<typeof messages>
 // News
 export type News = InferSelectModel<typeof news>
 export type NewNews = InferInsertModel<typeof news>
+
+// Daily Missions
+export type DailyMission = InferSelectModel<typeof dailyMissions>
+export type NewDailyMission = InferInsertModel<typeof dailyMissions>
+
+// Daily Mission Progress
+export type DailyMissionProgress = InferSelectModel<typeof dailyMissionProgress>
+export type NewDailyMissionProgress = InferInsertModel<typeof dailyMissionProgress>
