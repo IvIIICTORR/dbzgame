@@ -26,12 +26,20 @@ const timer = ref(99)
 const isGameOver = ref(false)
 const screenEffect = ref<'' | 'flash' | 'shake'>('')
 
-// --- STATUS DOS PERSONAGENS ---
-const gokuHp = ref(100)
-const gokuKi = ref(5)
-const gokuStamina = ref(100)
-const gokuLevel = 50
+// --- STATUS DO JOGADOR (do auth store) ---
+const playerName = computed(() => (auth.user as any)?.name || (auth.user as any)?.username || 'Jogador')
+const playerLevel = computed(() => (auth.user as any)?.level ?? 1)
+const playerAvatarUrl = computed(() => (auth.user as any)?.avatarUrl || '/templates/equipamentos/goku.png')
+const playerImageUrl = computed(() => (auth.user as any)?.battleImageUrl || '/templates/goku.png')
+const playerMaxHp = computed(() => (auth.user as any)?.maxHp ?? 100)
+const playerMaxStamina = computed(() => (auth.user as any)?.maxStamina ?? 100)
 
+// Estado de batalha do jogador (reseta a cada batalha)
+const gokuHp = ref(playerMaxHp.value)
+const gokuKi = ref(5)
+const gokuStamina = ref(playerMaxStamina.value)
+
+// Estado de batalha do inimigo
 const jirenHp = ref(100)
 const jirenStamina = ref(100)
 
@@ -85,11 +93,11 @@ const startTurnTimer = () => {
     // Regra de roubo de turno por inatividade
     if (turnTimeLeft.value <= 0) {
       if (currentTurn.value === 'player') {
-        addToLog('Goku hesitou por muito tempo! Jiren tomou a iniciativa!', 'system')
+        addToLog(`${playerName.value} hesitou por muito tempo! ${enemyName.value} tomou a iniciativa!`, 'system')
         currentTurn.value = 'enemy'
         executeEnemyTurn()
       } else {
-        addToLog('Jiren perdeu o foco! Goku tomou a iniciativa!', 'system')
+        addToLog(`${enemyName.value} perdeu o foco! ${playerName.value} tomou a iniciativa!`, 'system')
         currentTurn.value = 'player'
         startTurnTimer()
       }
@@ -174,7 +182,7 @@ const executeAction = () => {
   // Efeitos da Técnica
   if (atk.type === 'transform') {
     playerForm.value = atk.name.split(' (')[0]
-    addToLog(`Goku explodiu em fúria e assumiu a forma ${playerForm.value}!`, 'goku')
+    addToLog(`${playerName.value} explodiu em fúria e assumiu a forma ${playerForm.value}!`, 'goku')
     screenEffect.value = 'flash'
     setTimeout(() => screenEffect.value = '', 300)
     
@@ -185,18 +193,18 @@ const executeAction = () => {
     else if (kaiokenLevel.value === 4) kaiokenLevel.value = 10
     else if (kaiokenLevel.value === 10) kaiokenLevel.value = 20
     
-    addToLog(`Goku ativou o Kaioken x${kaiokenLevel.value}!`, 'goku')
+    addToLog(`${playerName.value} ativou o Kaioken x${kaiokenLevel.value}!`, 'goku')
     screenEffect.value = 'shake'
     setTimeout(() => screenEffect.value = '', 200)
 
   } else if (atk.type === 'powerup') {
     gokuKi.value = Math.min(5, gokuKi.value + 2)
     gokuStamina.value = Math.min(100, gokuStamina.value + 30)
-    addToLog('Goku concentrou seu KI! (+2 KI, +30 STA)', 'goku')
+    addToLog(`${playerName.value} concentrou seu KI! (+2 KI, +30 STA)`, 'goku')
     
   } else if (atk.type === 'defend') {
     gokuKi.value = Math.min(5, gokuKi.value + 1)
-    addToLog(`Goku usou ${atk.name} estrategicamente! A defesa o fortalece. (+1 KI)`, 'goku')
+    addToLog(`${playerName.value} usou ${atk.name} estrategicamente! A defesa o fortalece. (+1 KI)`, 'goku')
     screenEffect.value = 'flash'
     setTimeout(() => screenEffect.value = '', 150)
     
@@ -204,13 +212,13 @@ const executeAction = () => {
     // Ataque
     jirenHp.value = Math.max(0, jirenHp.value - finalDamage)
     
-    let logMsg = `Goku disparou ${atk.name}! `
+    let logMsg = `${playerName.value} disparou ${atk.name}! `
     if (finalDamage >= 30) {
-      logMsg += `A guarda de Jiren foi obliterada! (-${finalDamage} de HP)`
+      logMsg += `A guarda de ${enemyName.value} foi obliterada! (-${finalDamage} de HP)`
     } else if (finalDamage >= 12) {
-      logMsg += `Jiren tentou bloquear, mas recebeu impacto direto. (-${finalDamage} de HP)`
+      logMsg += `${enemyName.value} tentou bloquear, mas recebeu impacto direto. (-${finalDamage} de HP)`
     } else {
-      logMsg += `Jiren bloqueou com os braços cruzados, minimizando o dano. (-${finalDamage} de HP)`
+      logMsg += `${enemyName.value} bloqueou com os braços cruzados, minimizando o dano. (-${finalDamage} de HP)`
     }
     
     addToLog(logMsg, 'goku')
@@ -237,22 +245,22 @@ const useItem = () => {
   const item = items.find(i => i.id === selectedItem.value)!
 
   if (item.id === 'semente') {
-    gokuHp.value = 100
+    gokuHp.value = playerMaxHp.value
     gokuKi.value = 5
-    gokuStamina.value = 100
-    addToLog('Goku engoliu a Semente dos Deuses! HP, Ki e Estamina 100% restaurados!', 'goku')
+    gokuStamina.value = playerMaxStamina.value
+    addToLog(`${playerName.value} engoliu a Semente dos Deuses! HP, Ki e Estamina 100% restaurados!`, 'goku')
     screenEffect.value = 'flash'
   } else if (item.id === 'peixe') {
-    gokuStamina.value = Math.min(100, gokuStamina.value + 50)
-    addToLog('Goku comeu o Peixe Verde! Recuperou seu fôlego rapidamente.', 'goku')
+    gokuStamina.value = Math.min(playerMaxStamina.value, gokuStamina.value + 50)
+    addToLog(`${playerName.value} comeu o Peixe Verde! Recuperou seu fôlego rapidamente.`, 'goku')
   } else if (item.id === 'lanche') {
     const heal = Math.floor(Math.random() * 11) + 5
-    gokuHp.value = Math.min(100, gokuHp.value + heal)
-    addToLog(`Goku fez um Lanchinho rápido! Recuperou ${heal} de HP.`, 'goku')
+    gokuHp.value = Math.min(playerMaxHp.value, gokuHp.value + heal)
+    addToLog(`${playerName.value} fez um Lanchinho rápido! Recuperou ${heal} de HP.`, 'goku')
   } else if (item.id === 'maca') {
     const dmg = Math.floor(Math.random() * 6) + 5
     jirenHp.value = Math.max(0, jirenHp.value - dmg)
-    addToLog(`Goku arremessou a Maçã Envenenada! A toxina corroeu a defesa inimiga, causando ${dmg} de dano!`, 'goku')
+    addToLog(`${playerName.value} arremessou a Maçã Envenenada! A toxina corroeu a defesa inimiga, causando ${dmg} de dano!`, 'goku')
     screenEffect.value = 'shake'
   }
 
@@ -280,11 +288,11 @@ const executeEnemyTurn = () => {
     // Custo de estamina do ataque do Jiren
     jirenStamina.value = Math.max(0, jirenStamina.value - 15)
     
-    let enemyMsg = `Jiren ataca com ferocidade! `
+    let enemyMsg = `${enemyName.value} ataca com ferocidade! `
     if (jirenDamage >= 12) {
-      enemyMsg += `A defesa de Goku foi rompida sem piedade! (-${jirenDamage} de HP)`
+      enemyMsg += `A defesa de ${playerName.value} foi rompida sem piedade! (-${jirenDamage} de HP)`
     } else {
-      enemyMsg += `Goku consegue esquivar de boa parte do impacto. (-${jirenDamage} de HP)`
+      enemyMsg += `${playerName.value} consegue esquivar de boa parte do impacto. (-${jirenDamage} de HP)`
     }
     
     addToLog(enemyMsg, 'jiren')
@@ -293,7 +301,7 @@ const executeEnemyTurn = () => {
     setTimeout(() => screenEffect.value = '', 300)
 
     // Recuperação de estamina no fim do turno (Cadência de RPG)
-    gokuStamina.value = Math.min(100, gokuStamina.value + 15)
+    gokuStamina.value = Math.min(playerMaxStamina.value, gokuStamina.value + 15)
     jirenStamina.value = Math.min(100, jirenStamina.value + 15)
 
     checkWinCondition()
@@ -399,9 +407,9 @@ onUnmounted(() => {
       <div class="relative w-[40%] h-[85%] animate-slide-right flex items-end">
         <div class="absolute bottom-10 left-1/4 w-[60%] h-[70%] bg-cyan-400/30 blur-[100px] rounded-full z-0"></div>
         <div class="absolute inset-0 bg-gradient-to-t from-[#f4f4f5] via-transparent to-transparent z-10"></div>
-        <img src="/templates/goku.png?auto=format&fit=crop&w=800&q=80" 
+        <img :src="playerImageUrl" 
              class="w-full h-full object-cover object-top mask-gradient-immersive drop-shadow-[0_0_20px_rgba(255,255,255,0.6)] filter grayscale-[10%] contrast-125 z-0" 
-             alt="Goku" />
+             :alt="playerName" />
       </div>
 
       <div class="relative w-[35%] h-[80%] animate-slide-left flex items-end opacity-95">
@@ -417,11 +425,11 @@ onUnmounted(() => {
       
       <div class="w-[40%] max-w-[500px] flex flex-col gap-2 mt-10">
         <div class="flex items-end gap-3 mb-1">
-          <img src="/templates/equipamentos/goku.png" class="size-14 rounded-md border-2 border-white shadow-md object-cover object-top bg-neutral-200" alt="Goku Avatar" />
+          <img :src="playerAvatarUrl" class="size-14 rounded-md border-2 border-white shadow-md object-cover object-top bg-neutral-200" :alt="playerName" />
           <div class="flex flex-col justify-end">
             <div class="flex items-baseline gap-2">
-              <h2 class="text-neutral-900 font-black italic tracking-widest text-xl uppercase drop-shadow-md leading-none">[DBG] GOKU</h2>
-              <span class="text-neutral-700 font-black italic text-xs">Nvl {{ gokuLevel }}</span>
+              <h2 class="text-neutral-900 font-black italic tracking-widest text-xl uppercase drop-shadow-md leading-none">{{ playerName }}</h2>
+              <span class="text-neutral-700 font-black italic text-xs">Nvl {{ playerLevel }}</span>
             </div>
             <span :class="['font-bold italic text-[10px] mt-1 px-1.5 rounded-sm uppercase border w-max transition-all', formBadgeClasses]">
               {{ currentFormText }}
@@ -430,10 +438,10 @@ onUnmounted(() => {
         </div>
         
         <div class="relative w-full h-6 bg-neutral-300/80 backdrop-blur-md overflow-hidden border-2 border-white shadow-[0_0_15px_rgba(255,255,255,0.8)] skew-x-[-15deg] origin-left flex items-center justify-center">
-          <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-400 to-blue-600 transition-all duration-300" :style="{ width: gokuHp + '%' }">
+          <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-400 to-blue-600 transition-all duration-300" :style="{ width: (gokuHp / playerMaxHp * 100) + '%' }">
             <div class="absolute top-0 right-0 w-4 h-full bg-white/50 blur-sm"></div>
           </div>
-          <span class="z-10 text-white font-black italic text-xs tracking-widest skew-x-[15deg] text-shadow-hard">{{ Math.floor(gokuHp) }} / 100</span>
+          <span class="z-10 text-white font-black italic text-xs tracking-widest skew-x-[15deg] text-shadow-hard">{{ Math.floor(gokuHp) }} / {{ playerMaxHp }}</span>
         </div>
         
         <div class="flex gap-3 w-full pl-2">
@@ -444,8 +452,8 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="relative w-[35%] h-4 bg-neutral-300/80 border border-white skew-x-[-15deg] overflow-hidden shadow-sm flex items-center justify-center">
-            <div class="absolute top-0 left-0 h-full bg-yellow-400 transition-all duration-300" :style="{ width: gokuStamina + '%' }"></div>
-            <span class="z-10 text-white font-black italic text-[9px] tracking-widest skew-x-[15deg] text-shadow-hard">{{ Math.floor(gokuStamina) }} / 100</span>
+            <div class="absolute top-0 left-0 h-full bg-yellow-400 transition-all duration-300" :style="{ width: (gokuStamina / playerMaxStamina * 100) + '%' }"></div>
+            <span class="z-10 text-white font-black italic text-[9px] tracking-widest skew-x-[15deg] text-shadow-hard">{{ Math.floor(gokuStamina) }} / {{ playerMaxStamina }}</span>
           </div>
         </div>
       </div>
