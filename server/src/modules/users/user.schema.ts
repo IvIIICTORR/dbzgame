@@ -15,7 +15,8 @@ const userSchema = z.object({
 	avatarUrl: z.url().optional(),
 })
 
-export const userResponseSchema = userSchema.extend({
+export const userResponseSchema = userSchema.omit({ avatarUrl: true }).extend({
+	avatarUrl: z.url().nullable(),
 	id: z.uuid(),
 	level: z.number(),
 	exp: z.number(),
