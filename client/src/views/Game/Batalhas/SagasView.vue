@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useHead } from '@unhead/vue'
+import { client } from '@/api/client.gen'
 
 useHead({ title: 'Sagas - Campanha | Dragon Ball Z RPG' })
 const router = useRouter()
@@ -9,56 +11,48 @@ const goBack = () => {
   router.push({ name: 'battles' }) 
 }
 
-const sagas = [
-  {
-    id: 1,
-    title: 'A Chegada dos Saiyajins',
-    episode: 'Capítulo 01',
-    desc: 'Raditz chegou à Terra. Una-se a Piccolo para resgatar Gohan e enfrentar a primeira grande ameaça espacial.',
-    status: 'CONCLUÍDO',
-    difficulty: 'Normal',
-    rank: 'S',
-    reward: 'Esfera de 4 Estrelas',
-    image: '/templates/batalhas/sagas/saiyajin.png',
-    unlocked: true
-  },
-  {
-    id: 2,
-    title: 'O Imperador do Universo',
-    episode: 'Capítulo 02',
-    desc: 'Viagem a Namekusei. Enfrente as Forças Ginyu e prepare-se para o duelo mortal contra Freeza.',
-    status: 'EM PROGRESSO',
-    difficulty: 'Normal',
-    rank: 'A',
-    reward: 'Z-Sword Fragment',
-    image: '/templates/batalhas/sagas/freeza.png',
-    unlocked: true
-  },
-  {
-    id: 3,
-    title: 'Os Androids e o Terror de Cell',
-    episode: 'Capítulo 03',
-    desc: 'O futuro está em perigo. Treine na Sala do Tempo para alcançar o Super Saiyajin 2 e deter a forma perfeita de Cell.',
-    status: 'BLOQUEADO',
-    difficulty: 'Difícil',
-    rank: '-',
-    reward: 'Cápsula de Treino',
-    image: '/templates/batalhas/sagas/cell.png',
-    unlocked: false
-  },
-  {
-    id: 4,
-    title: 'O Despertar de Majin Boo',
-    episode: 'Capítulo 04',
-    desc: 'A magia de Babidi libertou a criatura mais perigosa do universo. Domine a Genki Dama final.',
-    status: 'BLOQUEADO',
-    difficulty: 'Elite',
-    rank: '-',
-    reward: 'Brincos Potara',
-    image: '/templates/batalhas/sagas/majinboo.png',
-    unlocked: false
+interface SagaItem {
+  id: string
+  title: string
+  episode: string
+  desc: string
+  difficulty: string
+  reward: string
+  image: string | null
+  rank: string
+  status: 'CONCLUÍDO' | 'EM PROGRESSO' | 'BLOQUEADO'
+  unlocked: boolean
+}
+
+const sagas = ref<SagaItem[]>([])
+const isLoading = ref(true)
+
+const syncPercentage = computed(() => {
+  if (sagas.value.length === 0) return 0
+  const completed = sagas.value.filter(s => s.status === 'CONCLUÍDO').length
+  return Math.round((completed / sagas.value.length) * 100)
+})
+
+const fetchSagas = async () => {
+  try {
+    isLoading.value = true
+    const response = await client.get({ url: '/sagas' })
+    sagas.value = response.data as SagaItem[]
+  } catch (err) {
+    console.error('Erro ao carregar sagas:', err)
+  } finally {
+    isLoading.value = false
   }
-]
+}
+
+const enterSaga = (saga: SagaItem) => {
+  if (!saga.unlocked) return
+  router.push({ name: 'sagas_luta', params: { sagaId: saga.id } })
+}
+
+onMounted(() => {
+  fetchSagas()
+})
 </script>
 
 <template>
@@ -76,7 +70,7 @@ const sagas = [
         
         <div class="flex items-center gap-3 mb-2">
             <span class="bg-red-600 text-white text-[9px] font-black px-2 py-0.5 italic uppercase">Modo História</span>
-            <span class="text-neutral-500 text-[9px] font-black uppercase tracking-[0.3em]">Sincronização: 45%</span>
+            <span class="text-neutral-500 text-[9px] font-black uppercase tracking-[0.3em]">Sincronização: {{ syncPercentage }}%</span>
         </div>
         <h1 class="text-5xl md:text-7xl font-black text-white uppercase italic tracking-tighter leading-none">
           SAGAS <span class="text-red-600">LENDÁRIAS</span>
@@ -87,6 +81,7 @@ const sagas = [
     <main class="max-w-7xl mx-auto px-6 mt-16">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <div v-for="saga in sagas" :key="saga.id" 
+             @click="enterSaga(saga)"
              :class="['group flex flex-col md:flex-row md:h-[280px] bg-white border border-neutral-100 shadow-sm transition-all duration-500 overflow-hidden relative',
                       saga.unlocked ? 'hover:shadow-2xl cursor-pointer' : 'opacity-60 grayscale cursor-not-allowed']">
           

@@ -70,7 +70,7 @@ const router = createRouter({
       component: () => import('@/layouts/GameLayout.vue'),
       children: [
         { path: 'sagas', name: 'sagas', component: () => import('@/views/Game/Batalhas/SagasView.vue') },
-        { path: 'sagas-luta', name: 'sagas_luta', component: () => import('@/views/Game/Batalhas/SagaBattleView.vue') },
+        { path: 'sagas-luta/:sagaId', name: 'sagas_luta', component: () => import('@/views/Game/Batalhas/SagaBattleView.vue'), props: true },
         { path: 'arena-luta', name: 'arena_luta', component: () => import('@/views/Game/Batalhas/ArenaBattleView.vue') },
         { path: 'torneio', name: 'torneio', component: () => import('@/views/Game/Batalhas/BudokaiView.vue') },
         { path: 'gravidade', name: 'gravidade', component: () => import('@/views/Game/Batalhas/GravityRoomView.vue') },

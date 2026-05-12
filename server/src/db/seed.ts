@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
+import { eq } from 'drizzle-orm'
 import { fakerPT_BR as faker } from '@faker-js/faker'
-import { conversations, dailyMissionProgress, dailyMissions, messages, referrals, users } from '#/db/schema.js'
+import { conversations, dailyMissionProgress, dailyMissions, messages, referrals, sagaProgress, sagaStages, sagas, users } from '#/db/schema.js'
 import { hashPassword } from '#/shared/utils/password.js'
 import { db } from './index.js'
 
@@ -11,6 +12,9 @@ async function seed() {
 	const TOTAL_USERS = 50
 
 	// 1. Limpeza (Ordem importa por causa das chaves estrangeiras)
+	await db.delete(sagaProgress)
+	await db.delete(sagaStages)
+	await db.delete(sagas)
 	await db.delete(dailyMissionProgress)
 	await db.delete(dailyMissions)
 	await db.delete(messages)
@@ -156,7 +160,6 @@ async function seed() {
 
 	for (const p of testProgress) {
 		await db.insert(dailyMissionProgress).values({
-			id: crypto.randomUUID(),
 			userId: testUserId,
 			missionId: p.missionId,
 			progress: p.progress,
@@ -164,6 +167,138 @@ async function seed() {
 		})
 	}
 	console.log('\u2705 Missões diárias criadas com progresso do usuário de teste')
+
+	// ======================================================
+	// 7. SAGAS (Campanha)
+	// ======================================================
+	const sagasData = [
+		{
+			title: 'A Chegada dos Saiyajins',
+			episode: 'Capítulo 01',
+			description: 'Raditz chegou à Terra. Una-se a Piccolo para resgatar Gohan e enfrentar a primeira grande ameaça espacial.',
+			difficulty: 'Normal' as const,
+			reward: 'Esfera de 4 Estrelas',
+			rewardZeni: 1000,
+			rewardExp: 500,
+			imageUrl: '/templates/batalhas/sagas/saiyajin.png',
+			sortOrder: 1,
+			requiresSagaId: null,
+			stages: [
+				{ stageName: 'Raditz - O Irmão de Goku', enemyName: 'Raditz', enemyLevel: 15, enemyHp: 80, enemyAvatarUrl: '/templates/equipamentos/raditz.avif', enemyImageUrl: '/templates/raditz.png', enemyForm: 'Base', sortOrder: 1 },
+				{ stageName: 'Nappa - O General Saiyajin', enemyName: 'Nappa', enemyLevel: 25, enemyHp: 100, enemyAvatarUrl: '/templates/equipamentos/nappa.avif', enemyImageUrl: '/templates/nappa.png', enemyForm: 'Base', sortOrder: 2 },
+				{ stageName: 'Vegeta - O Príncipe dos Saiyajins', enemyName: 'Vegeta', enemyLevel: 35, enemyHp: 120, enemyAvatarUrl: '/templates/equipamentos/vegeta.avif', enemyImageUrl: '/templates/vegeta.png', enemyForm: 'Oozaru', sortOrder: 3 },
+			],
+		},
+		{
+			title: 'O Imperador do Universo',
+			episode: 'Capítulo 02',
+			description: 'Viagem a Namekusei. Enfrente as Forças Ginyu e prepare-se para o duelo mortal contra Freeza.',
+			difficulty: 'Normal' as const,
+			reward: 'Z-Sword Fragment',
+			rewardZeni: 2000,
+			rewardExp: 1000,
+			imageUrl: '/templates/batalhas/sagas/freeza.png',
+			sortOrder: 2,
+			requiresSagaId: null as string | null, // preenchido depois
+			stages: [
+				{ stageName: 'Capitão Ginyu - Mudança de Corpo', enemyName: 'Ginyu', enemyLevel: 40, enemyHp: 90, enemyAvatarUrl: '/templates/equipamentos/ginyu.avif', enemyImageUrl: '/templates/ginyu.png', enemyForm: 'Base', sortOrder: 1 },
+				{ stageName: 'Freeza - Primeira Forma', enemyName: 'Freeza', enemyLevel: 50, enemyHp: 100, enemyAvatarUrl: '/templates/equipamentos/freeza.avif', enemyImageUrl: '/templates/freeza.png', enemyForm: '1ª Forma', sortOrder: 2 },
+				{ stageName: 'Freeza - Forma Final', enemyName: 'Freeza', enemyLevel: 65, enemyHp: 150, enemyAvatarUrl: '/templates/equipamentos/freeza.avif', enemyImageUrl: '/templates/freeza.png', enemyForm: 'Forma Final', sortOrder: 3 },
+			],
+		},
+		{
+			title: 'Os Androids e o Terror de Cell',
+			episode: 'Capítulo 03',
+			description: 'O futuro está em perigo. Treine na Sala do Tempo para alcançar o Super Saiyajin 2 e deter a forma perfeita de Cell.',
+			difficulty: 'Difícil' as const,
+			reward: 'Cápsula de Treino',
+			rewardZeni: 3000,
+			rewardExp: 1500,
+			imageUrl: '/templates/batalhas/sagas/cell.png',
+			sortOrder: 3,
+			requiresSagaId: null as string | null,
+			stages: [
+				{ stageName: 'Android 19 e Dr. Gero', enemyName: 'Android 19', enemyLevel: 55, enemyHp: 90, enemyAvatarUrl: '/templates/equipamentos/android19.avif', enemyImageUrl: '/templates/android19.png', enemyForm: 'Base', sortOrder: 1 },
+				{ stageName: 'Cell - Forma Semi-Perfeita', enemyName: 'Cell', enemyLevel: 70, enemyHp: 120, enemyAvatarUrl: '/templates/equipamentos/cell.avif', enemyImageUrl: '/templates/cell.png', enemyForm: 'Semi-Perfeito', sortOrder: 2 },
+				{ stageName: 'Cell - Forma Perfeita', enemyName: 'Cell', enemyLevel: 80, enemyHp: 180, enemyAvatarUrl: '/templates/equipamentos/cell.avif', enemyImageUrl: '/templates/cell.png', enemyForm: 'Perfeito', sortOrder: 3 },
+			],
+		},
+		{
+			title: 'O Despertar de Majin Boo',
+			episode: 'Capítulo 04',
+			description: 'A magia de Babidi libertou a criatura mais perigosa do universo. Domine a Genki Dama final.',
+			difficulty: 'Elite' as const,
+			reward: 'Brincos Potara',
+			rewardZeni: 5000,
+			rewardExp: 2500,
+			imageUrl: '/templates/batalhas/sagas/majinboo.png',
+			sortOrder: 4,
+			requiresSagaId: null as string | null,
+			stages: [
+				{ stageName: 'Dabura - O Rei dos Demônios', enemyName: 'Dabura', enemyLevel: 75, enemyHp: 100, enemyAvatarUrl: '/templates/equipamentos/dabura.avif', enemyImageUrl: '/templates/dabura.png', enemyForm: 'Base', sortOrder: 1 },
+				{ stageName: 'Majin Boo - Forma Gorda', enemyName: 'Majin Boo', enemyLevel: 85, enemyHp: 150, enemyAvatarUrl: '/templates/equipamentos/majinboo.avif', enemyImageUrl: '/templates/majinboo.png', enemyForm: 'Gordo', sortOrder: 2 },
+				{ stageName: 'Kid Boo - A Forma Original', enemyName: 'Kid Boo', enemyLevel: 99, enemyHp: 200, enemyAvatarUrl: '/templates/equipamentos/kidboo.avif', enemyImageUrl: '/templates/kidboo.png', enemyForm: 'Kid', sortOrder: 3 },
+			],
+		},
+	]
+
+	const sagaIds: string[] = []
+	for (const s of sagasData) {
+		const sagaId = crypto.randomUUID()
+		sagaIds.push(sagaId)
+
+		await db.insert(sagas).values({
+			id: sagaId,
+			title: s.title,
+			episode: s.episode,
+			description: s.description,
+			difficulty: s.difficulty,
+			reward: s.reward,
+			rewardZeni: s.rewardZeni,
+			rewardExp: s.rewardExp,
+			imageUrl: s.imageUrl,
+			sortOrder: s.sortOrder,
+			requiresSagaId: s.requiresSagaId,
+		})
+
+		for (const stage of s.stages) {
+			await db.insert(sagaStages).values({
+				sagaId,
+				...stage,
+			})
+		}
+	}
+
+	// Encadear requisitos: saga 2 requer saga 1, saga 3 requer saga 2, etc
+	for (let i = 1; i < sagaIds.length; i++) {
+		await db.update(sagas).set({ requiresSagaId: sagaIds[i - 1] }).where(
+			// @ts-expect-error - Drizzle strict typing
+			eq(sagas.id, sagaIds[i]),
+		)
+	}
+
+	// Progresso do test user: saga 1 concluída, saga 2 em progresso
+	// @ts-expect-error - Drizzle strict typing with $defaultFn
+	await db.insert(sagaProgress).values({
+		userId: testUserId,
+		sagaId: sagaIds[0],
+		status: 'completed',
+		rank: 'S',
+		victories: 3,
+		defeats: 1,
+		bestTime: 85,
+		completedAt: new Date(),
+	})
+	// @ts-expect-error - Drizzle strict typing with $defaultFn
+	await db.insert(sagaProgress).values({
+		userId: testUserId,
+		sagaId: sagaIds[1],
+		status: 'in_progress',
+		victories: 1,
+		defeats: 2,
+	})
+
+	console.log('\u2705 Sagas criadas com stages e progresso do usuário de teste')
 
 	console.log('--- Seed Finalizada ---')
 	process.exit(0)

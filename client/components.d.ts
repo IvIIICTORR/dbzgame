@@ -67,6 +67,7 @@ declare module 'vue' {
     'ISolar:unreadOutline': typeof import('~icons/solar/unread-outline')['default']
     'ISolar:wadOfMoneyBold': typeof import('~icons/solar/wad-of-money-bold')['default']
     ISolarArrowLeftOutline: typeof import('~icons/solar/arrow-left-outline')['default']
+    ISolarClockCircleBold: typeof import('~icons/solar/clock-circle-bold')['default']
     ISolarPlayBold: typeof import('~icons/solar/play-bold')['default']
     'IStreamlineSharp:checkSolid': typeof import('~icons/streamline-sharp/check-solid')['default']
     LogoKodarGames: typeof import('./src/components/LogoKodarGames.vue')['default']

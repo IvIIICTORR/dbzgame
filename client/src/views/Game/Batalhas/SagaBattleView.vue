@@ -1,9 +1,25 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { client } from '@/api/client.gen'
 
+const props = defineProps<{ sagaId: string }>()
 const router = useRouter()
+const auth = useAuthStore()
 const exitSaga = () => router.push({ name: 'sagas' })
+
+// --- DADOS DA SAGA (carregados do backend) ---
+const sagaTitle = ref('')
+const enemyName = ref('Inimigo')
+const enemyLevel = ref(99)
+const enemyMaxHp = ref(100)
+const enemyAvatarUrl = ref('/templates/equipamentos/jiren.png')
+const enemyImageUrl = ref('/templates/jiren.png')
+const enemyForm = ref('Base')
+const isLoadingSaga = ref(true)
+const battleStartTime = ref(0)
+const battleResult = ref<{ won: boolean; reward: any; message: string } | null>(null)
 
 // --- ESTADOS DO JOGO ---
 const timer = ref(99)
@@ -18,7 +34,6 @@ const gokuLevel = 50
 
 const jirenHp = ref(100)
 const jirenStamina = ref(100)
-const jirenLevel = 99
 
 // --- ESTADOS DE FORMA E BUFFS ---
 const playerForm = ref('Base')
@@ -301,13 +316,55 @@ const checkWinCondition = () => {
     clearInterval(clockInterval)
     clearInterval(turnInterval)
     
-    if (gokuHp.value <= 0) addToLog('VITÓRIA DE JIREN. O Universo 7 será apagado.', 'system')
-    else if (jirenHp.value <= 0) addToLog('VITÓRIA DE GOKU! Jiren foi derrotado.', 'system')
+    const won = jirenHp.value <= 0
+    if (gokuHp.value <= 0) addToLog(`VITÓRIA DE ${enemyName.value.toUpperCase()}. Você foi derrotado.`, 'system')
+    else if (won) addToLog(`VITÓRIA! ${enemyName.value} foi derrotado!`, 'system')
     else addToLog('TEMPO ESGOTADO. Empate.', 'system')
+
+    submitBattleResult(won)
   }
 }
 
-onMounted(() => {
+const submitBattleResult = async (won: boolean) => {
+  try {
+    const timeElapsed = Math.floor((Date.now() - battleStartTime.value) / 1000)
+    const response = await client.post({
+      url: `/sagas/${props.sagaId}/result`,
+      body: { won, timeElapsed },
+    })
+    battleResult.value = response.data as any
+  } catch (err) {
+    console.error('Erro ao enviar resultado:', err)
+  }
+}
+
+const loadSagaData = async () => {
+  try {
+    isLoadingSaga.value = true
+    const response = await client.get({ url: `/sagas/${props.sagaId}` })
+    const data = response.data as any
+    sagaTitle.value = data.title
+    if (data.stages && data.stages.length > 0) {
+      const stage = data.stages[0]
+      enemyName.value = stage.enemyName
+      enemyLevel.value = stage.enemyLevel
+      enemyMaxHp.value = stage.enemyHp
+      jirenHp.value = stage.enemyHp
+      if (stage.enemyAvatarUrl) enemyAvatarUrl.value = stage.enemyAvatarUrl
+      if (stage.enemyImageUrl) enemyImageUrl.value = stage.enemyImageUrl
+      if (stage.enemyForm) enemyForm.value = stage.enemyForm
+    }
+  } catch (err) {
+    console.error('Erro ao carregar saga:', err)
+  } finally {
+    isLoadingSaga.value = false
+  }
+}
+
+onMounted(async () => {
+  await loadSagaData()
+  battleStartTime.value = Date.now()
+
   clockInterval = setInterval(() => {
     if (timer.value > 0 && !isGameOver.value) {
       timer.value--
@@ -315,7 +372,6 @@ onMounted(() => {
     }
   }, 1000)
   
-  // Inicia o turno do jogador
   startTurnTimer()
 })
 
@@ -351,9 +407,9 @@ onUnmounted(() => {
       <div class="relative w-[35%] h-[80%] animate-slide-left flex items-end opacity-95">
         <div class="absolute bottom-10 right-1/4 w-[60%] h-[70%] bg-red-500/20 blur-[100px] rounded-full z-0"></div>
         <div class="absolute inset-0 bg-gradient-to-t from-[#f4f4f5] via-transparent to-transparent z-10"></div>
-        <img src="/templates/jiren.png?auto=format&fit=crop&w=800&q=80" 
+        <img :src="enemyImageUrl + '?auto=format&fit=crop&w=800&q=80'" 
              class="w-full h-full object-cover object-top mask-gradient-immersive drop-shadow-[0_0_20px_rgba(220,38,38,0.2)] filter contrast-125 sepia-[20%] hue-rotate-[-20deg] z-0" 
-             alt="Jiren" />
+             :alt="enemyName" />
       </div>
     </div>
 
@@ -404,21 +460,21 @@ onUnmounted(() => {
 
       <div class="w-[40%] max-w-[500px] flex flex-col gap-2 items-end mt-10">
         <div class="flex items-end gap-3 mb-1 flex-row-reverse text-right">
-          <img src="/templates/equipamentos/jiren.png" class="size-14 rounded-md border-2 border-white shadow-md object-cover object-top bg-neutral-200" alt="Jiren Avatar" />
+          <img :src="enemyAvatarUrl" class="size-14 rounded-md border-2 border-white shadow-md object-cover object-top bg-neutral-200" :alt="enemyName" />
           <div class="flex flex-col justify-end items-end">
             <div class="flex items-baseline gap-2 flex-row-reverse">
-              <h2 class="text-neutral-900 font-black italic tracking-widest text-xl uppercase drop-shadow-md leading-none">[DBS] JIREN</h2>
-              <span class="text-neutral-700 font-black italic text-xs">Nvl {{ jirenLevel }}</span>
+              <h2 class="text-neutral-900 font-black italic tracking-widest text-xl uppercase drop-shadow-md leading-none">{{ enemyName }}</h2>
+              <span class="text-neutral-700 font-black italic text-xs">Nvl {{ enemyLevel }}</span>
             </div>
-            <span class="text-neutral-500 font-bold italic text-[10px] mt-1 bg-white/50 px-1.5 rounded-sm uppercase border border-neutral-300 w-max">Poder Total</span>
+            <span class="text-neutral-500 font-bold italic text-[10px] mt-1 bg-white/50 px-1.5 rounded-sm uppercase border border-neutral-300 w-max">{{ enemyForm }}</span>
           </div>
         </div>
         
         <div class="relative w-full h-6 bg-neutral-300/80 backdrop-blur-md overflow-hidden border-2 border-white shadow-[0_0_15px_rgba(220,38,38,0.4)] skew-x-[15deg] origin-right flex items-center justify-center">
-          <div class="absolute top-0 right-0 h-full bg-gradient-to-l from-orange-500 to-red-600 transition-all duration-300" :style="{ width: jirenHp + '%' }">
+          <div class="absolute top-0 right-0 h-full bg-gradient-to-l from-orange-500 to-red-600 transition-all duration-300" :style="{ width: (jirenHp / enemyMaxHp * 100) + '%' }">
             <div class="absolute top-0 left-0 w-4 h-full bg-white/50 blur-sm"></div>
           </div>
-          <span class="z-10 text-white font-black italic text-xs tracking-widest skew-x-[-15deg] text-shadow-hard">{{ Math.floor(jirenHp) }} / 100</span>
+          <span class="z-10 text-white font-black italic text-xs tracking-widest skew-x-[-15deg] text-shadow-hard">{{ Math.floor(jirenHp) }} / {{ enemyMaxHp }}</span>
         </div>
         
         <div class="flex gap-3 w-full pr-2 flex-row-reverse">
@@ -514,11 +570,25 @@ onUnmounted(() => {
     </main>
 
     <div v-if="isGameOver" class="absolute inset-0 z-50 flex flex-col justify-center items-center bg-black/80 backdrop-blur-sm pointer-events-auto">
-      <div class="bg-white px-20 py-10 rounded-2xl shadow-2xl text-center border-2 border-neutral-300">
-        <h1 class="text-5xl font-black italic tracking-widest uppercase text-neutral-900 mb-6">{{ gokuHp <= 0 ? 'K.O.' : 'VITÓRIA' }}</h1>
-        <button @click="() => location.reload()" class="px-10 py-4 bg-neutral-900 text-white font-black italic uppercase tracking-[0.2em] text-sm hover:bg-red-600 transition-all rounded-xl shadow-lg">
-          Lutar Novamente
-        </button>
+      <div class="bg-white px-20 py-10 rounded-2xl shadow-2xl text-center border-2 border-neutral-300 max-w-lg">
+        <h1 class="text-5xl font-black italic tracking-widest uppercase mb-4" :class="gokuHp <= 0 ? 'text-red-600' : 'text-green-600'">
+          {{ gokuHp <= 0 ? 'K.O.' : 'VITÓRIA' }}
+        </h1>
+        <p v-if="battleResult?.message" class="text-sm text-neutral-600 font-medium mb-6 italic">{{ battleResult.message }}</p>
+        <div v-if="battleResult?.reward" class="mb-6 flex flex-col gap-1">
+          <span class="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Recompensas</span>
+          <span class="text-sm font-bold text-yellow-600">+{{ battleResult.reward.zeni }} Zeni</span>
+          <span class="text-sm font-bold text-cyan-600">+{{ battleResult.reward.exp }} EXP</span>
+          <span v-if="battleResult.reward.item" class="text-sm font-bold text-purple-600">{{ battleResult.reward.item }}</span>
+        </div>
+        <div class="flex gap-4 justify-center">
+          <button @click="exitSaga" class="px-8 py-4 bg-neutral-900 text-white font-black italic uppercase tracking-[0.2em] text-sm hover:bg-red-600 transition-all rounded-xl shadow-lg cursor-pointer">
+            Voltar às Sagas
+          </button>
+          <button @click="() => location.reload()" class="px-8 py-4 bg-red-600 text-white font-black italic uppercase tracking-[0.2em] text-sm hover:bg-red-500 transition-all rounded-xl shadow-lg cursor-pointer">
+            Lutar Novamente
+          </button>
+        </div>
       </div>
     </div>
 

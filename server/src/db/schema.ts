@@ -252,6 +252,82 @@ export const dailyMissionProgress = mysqlTable(
 )
 
 // ======================================================
+// 10. SAGAS (Definição das sagas/campanha)
+// ======================================================
+export const sagas = mysqlTable('sagas', {
+	id: varchar('id', { length: 36 })
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	title: varchar('title', { length: 150 }).notNull(),
+	episode: varchar('episode', { length: 50 }).notNull(),
+	description: text('description').notNull(),
+	difficulty: mysqlEnum('difficulty', ['Normal', 'Difícil', 'Elite', 'Lendário']).notNull(),
+	reward: varchar('reward', { length: 255 }).notNull(),
+	rewardZeni: int('reward_zeni').notNull().default(0),
+	rewardExp: int('reward_exp').notNull().default(0),
+	imageUrl: varchar('image_url', { length: 512 }),
+	sortOrder: int('sort_order').notNull().default(0),
+	requiresSagaId: varchar('requires_saga_id', { length: 36 }),
+	isActive: boolean('is_active').default(true).notNull(),
+	createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// ======================================================
+// 11. SAGA STAGES (Boss/inimigos de cada saga)
+// ======================================================
+export const sagaStages = mysqlTable('saga_stages', {
+	id: varchar('id', { length: 36 })
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	sagaId: varchar('saga_id', { length: 36 })
+		.notNull()
+		.references(() => sagas.id, { onDelete: 'cascade' }),
+	stageName: varchar('stage_name', { length: 100 }).notNull(),
+	enemyName: varchar('enemy_name', { length: 100 }).notNull(),
+	enemyLevel: int('enemy_level').notNull(),
+	enemyHp: int('enemy_hp').notNull().default(100),
+	enemyAvatarUrl: varchar('enemy_avatar_url', { length: 512 }),
+	enemyImageUrl: varchar('enemy_image_url', { length: 512 }),
+	enemyForm: varchar('enemy_form', { length: 100 }),
+	sortOrder: int('sort_order').notNull().default(0),
+	createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// ======================================================
+// 12. SAGA PROGRESS (Progresso do jogador nas sagas)
+// ======================================================
+export const sagaProgress = mysqlTable(
+	'saga_progress',
+	{
+		id: varchar('id', { length: 36 })
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		userId: varchar('user_id', { length: 36 })
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		sagaId: varchar('saga_id', { length: 36 })
+			.notNull()
+			.references(() => sagas.id, { onDelete: 'cascade' }),
+		currentStageId: varchar('current_stage_id', { length: 36 })
+			.references(() => sagaStages.id),
+		status: mysqlEnum('status', ['locked', 'in_progress', 'completed'])
+			.default('locked')
+			.notNull(),
+		rank: mysqlEnum('rank', ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS']),
+		bestTime: int('best_time'),
+		victories: int('victories').notNull().default(0),
+		defeats: int('defeats').notNull().default(0),
+		completedAt: timestamp('completed_at'),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+	},
+	(table) => [
+		unique('user_saga_unique').on(table.userId, table.sagaId),
+		index('user_saga_idx').on(table.userId),
+	],
+)
+
+// ======================================================
 // RELATIONSHIPS
 // ======================================================
 
@@ -262,6 +338,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 	referredBy: many(referrals, { relationName: 'referred' }),
 	messages: many(messages),
 	dailyMissionProgress: many(dailyMissionProgress),
+	sagaProgress: many(sagaProgress),
 }))
 
 export const dailyMissionsRelations = relations(dailyMissions, ({ many }) => ({
@@ -276,6 +353,33 @@ export const dailyMissionProgressRelations = relations(dailyMissionProgress, ({ 
 	mission: one(dailyMissions, {
 		fields: [dailyMissionProgress.missionId],
 		references: [dailyMissions.id],
+	}),
+}))
+
+export const sagasRelations = relations(sagas, ({ many }) => ({
+	stages: many(sagaStages),
+	progress: many(sagaProgress),
+}))
+
+export const sagaStagesRelations = relations(sagaStages, ({ one }) => ({
+	saga: one(sagas, {
+		fields: [sagaStages.sagaId],
+		references: [sagas.id],
+	}),
+}))
+
+export const sagaProgressRelations = relations(sagaProgress, ({ one }) => ({
+	user: one(users, {
+		fields: [sagaProgress.userId],
+		references: [users.id],
+	}),
+	saga: one(sagas, {
+		fields: [sagaProgress.sagaId],
+		references: [sagas.id],
+	}),
+	currentStage: one(sagaStages, {
+		fields: [sagaProgress.currentStageId],
+		references: [sagaStages.id],
 	}),
 }))
 
@@ -360,3 +464,15 @@ export type NewDailyMission = InferInsertModel<typeof dailyMissions>
 // Daily Mission Progress
 export type DailyMissionProgress = InferSelectModel<typeof dailyMissionProgress>
 export type NewDailyMissionProgress = InferInsertModel<typeof dailyMissionProgress>
+
+// Sagas
+export type Saga = InferSelectModel<typeof sagas>
+export type NewSaga = InferInsertModel<typeof sagas>
+
+// Saga Stages
+export type SagaStage = InferSelectModel<typeof sagaStages>
+export type NewSagaStage = InferInsertModel<typeof sagaStages>
+
+// Saga Progress
+export type SagaProgress = InferSelectModel<typeof sagaProgress>
+export type NewSagaProgress = InferInsertModel<typeof sagaProgress>
