@@ -44,6 +44,17 @@ export const users = mysqlTable(
 		// role: mysqlEnum('role', ['user', 'moderator', 'admin'])
 		// 	.default('user')
 		// 	.notNull(),
+		level: int('level').default(1).notNull(),
+		exp: int('exp').default(0).notNull(),
+		zeni: int('zeni').default(0).notNull(),
+		powerLevel: int('power_level').default(100).notNull(),
+		hp: int('hp').default(100).notNull(),
+		maxHp: int('max_hp').default(100).notNull(),
+		ki: int('ki').default(100).notNull(),
+		maxKi: int('max_ki').default(100).notNull(),
+		stamina: int('stamina').default(100).notNull(),
+		maxStamina: int('max_stamina').default(100).notNull(),
+		location: varchar('location', { length: 100 }).default('Planeta Terra - Capital do Oeste').notNull(),
 		isVerified: boolean('is_verified').default(false).notNull(),
 		isVip: boolean('is_vip').default(false).notNull(),
 		vipExpiresAt: timestamp('vip_expires_at'),

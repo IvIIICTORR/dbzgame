@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useHead } from '@unhead/vue'
 import { useAuthStore } from '@/stores/auth'
 import { RouterLink } from 'vue-router'
@@ -8,17 +8,31 @@ import { client } from '@/api/client.gen'
 useHead({ title: 'Base de Comando - Dragon Ball Z RPG' })
 const auth = useAuthStore()
 
-// --- MOCK DATA DO JOGADOR ---
-const playerStatus = {
-  powerLevel: '145.200',
-  zeni: '12,540',
-  location: 'Planeta Terra - Capital do Oeste',
-  isVip: true,
-  vipUntil: '15 MAI 2026',
-  hp: 100, maxHp: 100,
-  ki: 85, maxKi: 100,
-  stamina: 60, maxStamina: 100
+const formatNumber = (n: number) => n.toLocaleString('pt-BR')
+
+const formatVipDate = (date: string | Date | null | undefined) => {
+  if (!date) return ''
+  const d = new Date(date)
+  const months = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
+
+const u = computed(() => auth.user as Record<string, any> | null)
+
+const playerStatus = computed(() => ({
+  powerLevel: formatNumber(u.value?.powerLevel ?? 100),
+  zeni: formatNumber(u.value?.zeni ?? 0),
+  location: u.value?.location ?? 'Planeta Terra - Capital do Oeste',
+  isVip: u.value?.isVip ?? false,
+  vipUntil: formatVipDate(u.value?.vipExpiresAt),
+  level: u.value?.level ?? 1,
+  hp: u.value?.hp ?? 100,
+  maxHp: u.value?.maxHp ?? 100,
+  ki: u.value?.ki ?? 100,
+  maxKi: u.value?.maxKi ?? 100,
+  stamina: u.value?.stamina ?? 100,
+  maxStamina: u.value?.maxStamina ?? 100,
+}))
 
 // --- MISSÕES DIÁRIAS ---
 interface DailyMission {
@@ -56,6 +70,7 @@ const claimReward = async (mission: DailyMission) => {
     isClaiming.value = mission.id
     await client.post({ url: `/missions/daily/${mission.id}/claim` })
     mission.claimed = true
+    await auth.fetchCurrentUser()
   } catch (err) {
     console.error('Erro ao coletar recompensa:', err)
   } finally {
@@ -126,7 +141,7 @@ const stopDrag = () => { isDown = false; runMomentum() }
               <div class="relative size-24 md:size-28 bg-[#111] p-1 shadow-2xl" style="clip-path: polygon(15% 0, 100% 0, 100% 85%, 85% 100%, 0 100%, 0 15%);">
                 <img :src="auth.user?.avatarUrl || 'https://www.kodargames.com/images/team/shiro.webp'" class="w-full h-full object-cover" />
               </div>
-              <div class="absolute -bottom-1 left-1/6 -translate-x-1/10 bg-red-600 text-white text-[10px] font-black px-5 py-1 rounded shadow-lg uppercase italic border border-white/10">Nível 85</div>
+              <div class="absolute -bottom-1 left-1/6 -translate-x-1/10 bg-red-600 text-white text-[10px] font-black px-5 py-1 rounded shadow-lg uppercase italic border border-white/10">Nível {{ playerStatus.level }}</div>
             </div>
 
             <div class="flex flex-col">
@@ -154,7 +169,7 @@ const stopDrag = () => { isDown = false; runMomentum() }
                 <span class="tracking-tighter tabular-nums font-bold">{{ stat.v }} / {{ stat.m }}</span>
               </div>
               <div class="h-2.5 bg-black rounded-full border border-white/10 relative overflow-hidden">
-                <div class="h-full bg-gradient-to-r transition-all duration-1000 shadow-[0_0_8px_rgba(0,0,0,0.5)]" :class="stat.c" :style="`width: ${stat.v}%`"></div>
+                <div class="h-full bg-gradient-to-r transition-all duration-1000 shadow-[0_0_8px_rgba(0,0,0,0.5)]" :class="stat.c" :style="`width: ${(stat.v / stat.m) * 100}%`"></div>
               </div>
             </div>
           </div>

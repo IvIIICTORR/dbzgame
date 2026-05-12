@@ -1,5 +1,6 @@
 import { MissionRepository } from './mission.repository.js'
 import { BadRequest, NotFound } from '#/shared/errors/index.js'
+import { userRepository } from '../users/user.repository.js'
 
 const getTodayDate = () => new Date().toISOString().split('T')[0]
 
@@ -49,6 +50,7 @@ export const MissionService = {
 		}
 
 		await MissionRepository.claimMission(progressEntry.id)
+		await userRepository.addRewards(userId, mission.rewardZeni, mission.rewardExp)
 
 		return {
 			success: true,

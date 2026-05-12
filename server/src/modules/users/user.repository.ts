@@ -89,6 +89,36 @@ export const userRepository = {
 	 * @param userId - Identificador único do usuário.
 	 * @param days - Quantidade de dias a serem adicionados a partir de hoje.
 	 */
+	async addRewards(userId: string, zeni: number, exp: number) {
+		const user = await this.findById(userId)
+		if (!user) return null
+
+		const newZeni = user.zeni + zeni
+		const newExp = user.exp + exp
+
+		// Level up: cada 1000 EXP = 1 level
+		const expPerLevel = 1000
+		const totalExp = newExp
+		const levelsGained = Math.floor(totalExp / expPerLevel)
+		const newLevel = user.level + levelsGained
+		const remainingExp = totalExp - (levelsGained * expPerLevel)
+
+		// Power level cresce com level
+		const newPowerLevel = user.powerLevel + (levelsGained * 500) + (exp > 0 ? Math.floor(exp / 2) : 0)
+
+		await db
+			.update(users)
+			.set({
+				zeni: newZeni,
+				exp: levelsGained > 0 ? remainingExp : newExp,
+				level: newLevel,
+				powerLevel: newPowerLevel,
+			})
+			.where(eq(users.id, userId))
+
+		return this.findById(userId)
+	},
+
 	async giveVipDays(userId: string, days: number) {
 		const vipExpiresAt = new Date()
 		vipExpiresAt.setDate(vipExpiresAt.getDate() + days)

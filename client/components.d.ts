@@ -19,7 +19,7 @@ declare module 'vue' {
     AuthLink: typeof import('./src/components/auth/AuthLink.vue')['default']
     AuthSelect: typeof import('./src/components/auth/AuthSelect.vue')['default']
     AuthSocialButton: typeof import('./src/components/auth/AuthSocialButton.vue')['default']
-    Avatar: typeof import('./src/components/ui/Avatar.vue')['default']
+    Avatar: typeof import('./src/components/icon/Avatar.vue')['default']
     Badge: typeof import('./src/components/ui/Badge.vue')['default']
     Button: typeof import('./src/components/ui/Button.vue')['default']
     Card: typeof import('./src/components/icon/Card.vue')['default']

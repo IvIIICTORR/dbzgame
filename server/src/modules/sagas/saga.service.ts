@@ -1,5 +1,6 @@
 import { SagaRepository } from './saga.repository.js'
 import { NotFound, BadRequest } from '#/shared/errors/index.js'
+import { userRepository } from '../users/user.repository.js'
 
 export const SagaService = {
 	async getAllSagas(userId: string) {
@@ -123,6 +124,8 @@ export const SagaService = {
 				bestTime: data.timeElapsed,
 				completedAt: new Date(),
 			})
+
+			await userRepository.addRewards(userId, saga.rewardZeni, saga.rewardExp)
 
 			return {
 				success: true,
